@@ -49,4 +49,6 @@ app.post('/api/admin/import-pdf',upload.single('pdf'),async(req,res)=>{
 
 app.get('/api/health',(req,res)=>res.json({ok:true,records:count()}));
 
-app.listen(PORT,()=>console.log(`Result portal running at http://localhost:${PORT}`));
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Result portal running on port ${PORT}`);
+});
