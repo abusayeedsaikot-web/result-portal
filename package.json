@@ -1,0 +1,18 @@
+{
+  "name": "result-portal",
+  "version": "2.1.0",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "multer": "^2.0.2",
+    "pdfjs-dist": "^5.4.149",
+    "pg": "^8.23.0"
+  }
+}
