@@ -1,4 +1,4 @@
-const express = require('express');
+﻿const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
@@ -53,50 +53,50 @@ app.use(
 );
 
 // ===============================
-// Search Result
+// ===============================
+// Search Result - Multiple Semesters
 // ===============================
 
 app.post('/api/result', (req, res) => {
   try {
-    const roll = String(
-      req.body?.roll || ''
-    ).trim();
+    const roll = String(req.body?.roll || '').trim();
 
     if (!/^\d{6}$/.test(roll)) {
       return res.status(400).json({
         found: false,
-        message:
-          'Enter a valid 6-digit Roll number.'
+        message: 'Enter a valid 6-digit Roll number.'
       });
     }
 
-    const result = findByRoll(roll);
+    const results = findByRoll(roll);
 
-    if (!result) {
+    if (!results || results.length === 0) {
       return res.status(404).json({
         found: false,
         message: 'No result found.'
       });
     }
 
-    result.ref_subjects =
-      result.ref_subjects
-        ? result.ref_subjects
-            .split(',')
-            .map(x => x.trim())
-            .filter(Boolean)
-        : [];
+    const formattedResults = results
+      .sort((a, b) => Number(a.semester) - Number(b.semester))
+      .map(result => ({
+        ...result,
+        ref_subjects: result.ref_subjects
+          ? String(result.ref_subjects)
+              .split(',')
+              .map(x => x.trim())
+              .filter(Boolean)
+          : []
+      }));
 
     return res.json({
       found: true,
-      result
+      count: formattedResults.length,
+      results: formattedResults
     });
 
   } catch (err) {
-    console.error(
-      'Result search error:',
-      err
-    );
+    console.error('Result search error:', err);
 
     return res.status(500).json({
       found: false,
@@ -104,8 +104,6 @@ app.post('/api/result', (req, res) => {
     });
   }
 });
-
-// ===============================
 // Admin PDF Import
 // ===============================
 

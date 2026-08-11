@@ -1,3 +1,7 @@
 ﻿node_modules/
+*.db
+*.pdf
 .env
-results-backup.db
+uploads/
+server.js.backup
+database-broken-backup.js
