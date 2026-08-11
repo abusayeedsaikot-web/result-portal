@@ -1,154 +1,169 @@
-const { Pool } = require('pg');
+const { DatabaseSync } = require('node:sqlite');
+const path = require('path');
 
-// Render injects DATABASE_URL automatically when you link a Postgres
-// database to your web service (Environment tab shows it, or you can
-// set it manually from the database's "Internal Database URL").
-if (!process.env.DATABASE_URL) {
-  console.warn('WARNING: DATABASE_URL is not set. Set it in your environment (.env locally, or Render\'s Environment tab) to a PostgreSQL connection string.');
+const db = new DatabaseSync(
+  path.join(__dirname, 'results.db')
+);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS students (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    roll TEXT NOT NULL,
+    registration TEXT DEFAULT '',
+    name TEXT DEFAULT '',
+    father_name TEXT DEFAULT '',
+    exam_year TEXT DEFAULT '',
+    board TEXT DEFAULT 'Bangladesh Technical Education Board',
+    group_name TEXT DEFAULT '',
+    gpa REAL,
+    status TEXT DEFAULT '',
+    gpa1 TEXT DEFAULT '',
+    gpa2 TEXT DEFAULT '',
+    gpa3 TEXT DEFAULT '',
+    ref_subjects TEXT DEFAULT '',
+    institute TEXT DEFAULT '',
+    source_file TEXT DEFAULT '',
+    imported_at TEXT DEFAULT '',
+    UNIQUE(roll, registration)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_students_roll
+  ON students(roll);
+`);
+
+const cols = new Set(
+  db.prepare('PRAGMA table_info(students)')
+    .all()
+    .map(x => x.name)
+);
+
+const newColumns = {
+  gpa1: 'ALTER TABLE students ADD COLUMN gpa1 TEXT',
+  gpa2: 'ALTER TABLE students ADD COLUMN gpa2 TEXT',
+  gpa3: 'ALTER TABLE students ADD COLUMN gpa3 TEXT',
+  ref_subjects:
+    "ALTER TABLE students ADD COLUMN ref_subjects TEXT DEFAULT ''",
+  institute:
+    "ALTER TABLE students ADD COLUMN institute TEXT DEFAULT ''",
+  source_file:
+    "ALTER TABLE students ADD COLUMN source_file TEXT DEFAULT ''",
+  imported_at:
+    "ALTER TABLE students ADD COLUMN imported_at TEXT DEFAULT ''"
+};
+
+for (const [name, sql] of Object.entries(newColumns)) {
+  if (!cols.has(name)) {
+    db.exec(sql);
+  }
 }
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  // Render's managed Postgres requires SSL for external connections.
-  // Internal connections (same Render region) also accept this safely.
-  ssl: process.env.DATABASE_URL && process.env.DATABASE_URL.includes('localhost')
-    ? false
-    : { rejectUnauthorized: false }
-});
+function upsertRecords(records, sourceFile) {
+  const stmt = db.prepare(`
+    INSERT INTO students
+    (
+      roll,
+      registration,
+      name,
+      exam_year,
+      board,
+      gpa,
+      status,
+      gpa1,
+      gpa2,
+      gpa3,
+      ref_subjects,
+      institute,
+      source_file,
+      imported_at
+    )
+    VALUES (?, '', '', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 
-async function init() {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS students (
-      id SERIAL PRIMARY KEY,
-      roll TEXT NOT NULL,
-      registration TEXT DEFAULT '',
-      name TEXT DEFAULT '',
-      father_name TEXT DEFAULT '',
-      exam_year TEXT DEFAULT '',
-      board TEXT DEFAULT 'Bangladesh Technical Education Board',
-      group_name TEXT DEFAULT '',
-      gpa REAL,
-      status TEXT,
-      gpa1 TEXT,
-      gpa2 TEXT,
-      gpa3 TEXT,
-      ref_subjects TEXT DEFAULT '',
-      institute TEXT DEFAULT '',
-      source_file TEXT DEFAULT '',
-      imported_at TEXT DEFAULT '',
-      UNIQUE(roll, registration)
-    );
+    ON CONFLICT(roll, registration)
+    DO UPDATE SET
+      exam_year = excluded.exam_year,
+      board = excluded.board,
+      gpa = excluded.gpa,
+      status = excluded.status,
+      gpa1 = excluded.gpa1,
+      gpa2 = excluded.gpa2,
+      gpa3 = excluded.gpa3,
+      ref_subjects = excluded.ref_subjects,
+      institute = excluded.institute,
+      source_file = excluded.source_file,
+      imported_at = excluded.imported_at
   `);
 
-  await pool.query(`CREATE INDEX IF NOT EXISTS idx_students_roll ON students(roll);`);
-}
-
-// Run once when this module is first loaded. server.js awaits initDone
-// before accepting requests (see server.js changes).
-const initDone = init().catch(err => {
-  console.error('Database initialization failed:', err);
-  process.exit(1);
-});
-
-/**
- * Bulk insert/update student records inside a single transaction.
- * Rows are chunked to keep each SQL statement a reasonable size.
- */
-async function upsertRecords(records, sourceFile) {
-  if (!records.length) return 0;
-
   const now = new Date().toISOString();
-  const CHUNK_SIZE = 500;
-  let inserted = 0;
+  let n = 0;
 
-  const client = await pool.connect();
+  db.exec('BEGIN');
+
   try {
-    await client.query('BEGIN');
+    for (const r of records) {
+      const nums = [r.gpa1, r.gpa2, r.gpa3]
+        .filter(x => x && x !== 'ref')
+        .map(Number)
+        .filter(Number.isFinite);
 
-    for (let i = 0; i < records.length; i += CHUNK_SIZE) {
-      const chunk = records.slice(i, i + CHUNK_SIZE);
+      const overall = nums.length
+        ? Number(
+            (
+              nums.reduce((a, b) => a + b, 0) /
+              nums.length
+            ).toFixed(2)
+          )
+        : null;
 
-      const values = [];
-      const rowPlaceholders = [];
+      stmt.run(
+        String(r.roll || ''),
+        r.examYear || '',
+        'Bangladesh Technical Education Board',
+        overall,
+        r.status || '',
+        r.gpa1 || '',
+        r.gpa2 || '',
+        r.gpa3 || '',
+        (r.refSubjects || []).join(', '),
+        r.institute || '',
+        sourceFile || '',
+        now
+      );
 
-      chunk.forEach((r) => {
-        const nums = [r.gpa1, r.gpa2, r.gpa3]
-          .filter(x => x && x !== 'ref')
-          .map(Number)
-          .filter(Number.isFinite);
-        const overall = nums.length
-          ? Number((nums.reduce((a, b) => a + b, 0) / nums.length).toFixed(2))
-          : null;
-
-        // Column order: roll, registration, name, exam_year, board, gpa,
-        // status, gpa1, gpa2, gpa3, ref_subjects, institute, source_file, imported_at
-        const rowValues = [
-          r.roll,
-          '',                                        // registration
-          '',                                        // name
-          r.examYear || '',
-          'Bangladesh Technical Education Board',
-          overall,
-          r.status || '',
-          r.gpa1 || '',
-          r.gpa2 || '',
-          r.gpa3 || '',
-          (r.refSubjects || []).join('; '),
-          r.institute || '',
-          sourceFile,
-          now
-        ];
-
-        const startIdx = values.length;
-        rowValues.forEach(v => values.push(v));
-        const placeholders = rowValues.map((_, j) => `$${startIdx + j + 1}`);
-        rowPlaceholders.push(`(${placeholders.join(', ')})`);
-      });
-
-      const sql = `
-        INSERT INTO students
-          (roll, registration, name, exam_year, board, gpa, status, gpa1, gpa2, gpa3, ref_subjects, institute, source_file, imported_at)
-        VALUES ${rowPlaceholders.join(', ')}
-        ON CONFLICT (roll, registration) DO UPDATE SET
-          exam_year = EXCLUDED.exam_year,
-          board = EXCLUDED.board,
-          gpa = EXCLUDED.gpa,
-          status = EXCLUDED.status,
-          gpa1 = EXCLUDED.gpa1,
-          gpa2 = EXCLUDED.gpa2,
-          gpa3 = EXCLUDED.gpa3,
-          ref_subjects = EXCLUDED.ref_subjects,
-          institute = EXCLUDED.institute,
-          source_file = EXCLUDED.source_file,
-          imported_at = EXCLUDED.imported_at
-      `;
-
-      await client.query(sql, values);
-      inserted += chunk.length;
+      n++;
     }
 
-    await client.query('COMMIT');
+    db.exec('COMMIT');
   } catch (err) {
-    await client.query('ROLLBACK');
+    try {
+      db.exec('ROLLBACK');
+    } catch {}
+
     throw err;
-  } finally {
-    client.release();
   }
 
-  return inserted;
+  return n;
 }
 
-async function findByRoll(roll) {
-  const res = await pool.query(
-    `SELECT * FROM students WHERE roll = $1 ORDER BY id DESC LIMIT 1`,
-    [String(roll).trim()]
-  );
-  return res.rows[0] || null;
+function findByRoll(roll) {
+  return db
+    .prepare(`
+      SELECT *
+      FROM students
+      WHERE roll = ?
+      ORDER BY id DESC
+      LIMIT 1
+    `)
+    .get(String(roll).trim());
 }
 
-async function count() {
-  const res = await pool.query(`SELECT COUNT(*) AS count FROM students`);
-  return Number(res.rows[0].count);
+function count() {
+  return db
+    .prepare('SELECT COUNT(*) AS count FROM students')
+    .get().count;
 }
 
-module.exports = { upsertRecords, findByRoll, count, initDone };
+module.exports = {
+  upsertRecords,
+  findByRoll,
+  count
+};

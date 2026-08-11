@@ -1,101 +1,125 @@
-require('dotenv').config();
-
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
 const multer = require('multer');
+const path = require('path');
 
 const { parsePdfBuffer } = require('./pdf-parser');
 const {
   upsertRecords,
   findByRoll,
-  count,
-  initDone
+  count
 } = require('./database');
 
 const app = express();
 
 const PORT = process.env.PORT || 3000;
-const ADMIN_KEY = process.env.ADMIN_KEY || 'change-this-key';
+const ADMIN_KEY =
+  process.env.ADMIN_KEY || 'change-this-key';
 
 const upload = multer({
   storage: multer.memoryStorage(),
+
   limits: {
     fileSize: 50 * 1024 * 1024
   },
+
   fileFilter: (req, file, cb) => {
     const ok =
       file.mimetype === 'application/pdf' ||
-      file.originalname.toLowerCase().endsWith('.pdf');
+      file.originalname
+        .toLowerCase()
+        .endsWith('.pdf');
 
-    if (ok) {
-      cb(null, true);
-    } else {
-      cb(new Error('Only PDF files are allowed.'));
-    }
+    cb(
+      ok
+        ? null
+        : new Error('Only PDF files are allowed.'),
+      ok
+    );
   }
 });
+
+// ===============================
+// Middleware
+// ===============================
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
 
+app.use(
+  express.static(
+    path.join(__dirname, 'public')
+  )
+);
 
 // ===============================
-// Result Search
+// Search Result
 // ===============================
 
-app.post('/api/result', async (req, res) => {
-  const roll = String(req.body?.roll || '').trim();
-
-  if (!/^\d{6}$/.test(roll)) {
-    return res.status(400).json({
-      found: false,
-      message: 'Enter a valid 6-digit Roll number.'
-    });
-  }
-
-  let r;
+app.post('/api/result', (req, res) => {
   try {
-    r = await findByRoll(roll);
-  } catch (e) {
-    console.error('Result lookup error:', e);
-    return res.status(500).json({ found: false, message: 'Server error while looking up the result.' });
-  }
+    const roll = String(
+      req.body?.roll || ''
+    ).trim();
 
-  if (!r) {
-    return res.status(404).json({
+    if (!/^\d{6}$/.test(roll)) {
+      return res.status(400).json({
+        found: false,
+        message:
+          'Enter a valid 6-digit Roll number.'
+      });
+    }
+
+    const result = findByRoll(roll);
+
+    if (!result) {
+      return res.status(404).json({
+        found: false,
+        message: 'No result found.'
+      });
+    }
+
+    result.ref_subjects =
+      result.ref_subjects
+        ? result.ref_subjects
+            .split(',')
+            .map(x => x.trim())
+            .filter(Boolean)
+        : [];
+
+    return res.json({
+      found: true,
+      result
+    });
+
+  } catch (err) {
+    console.error(
+      'Result search error:',
+      err
+    );
+
+    return res.status(500).json({
       found: false,
-      message: 'No result found.'
+      message: 'Server error.'
     });
   }
-
-  r.ref_subjects = r.ref_subjects
-    ? r.ref_subjects
-        .split(';')
-        .map(x => x.trim())
-        .filter(Boolean)
-    : [];
-
-  res.json({
-    found: true,
-    result: r
-  });
 });
 
-
 // ===============================
-// Admin - Multiple PDF Import
+// Admin PDF Import
 // ===============================
 
 app.post(
   '/api/admin/import-pdf',
   upload.array('pdf', 10),
   async (req, res) => {
+
     try {
 
-      // Admin key check
-      if (req.get('x-admin-key') !== ADMIN_KEY) {
+      // Check admin key
+      if (
+        req.get('x-admin-key') !== ADMIN_KEY
+      ) {
         return res.status(401).json({
           ok: false,
           message: 'Invalid admin key.'
@@ -103,45 +127,57 @@ app.post(
       }
 
       // Check files
-      if (!req.files || req.files.length === 0) {
+      if (
+        !req.files ||
+        req.files.length === 0
+      ) {
         return res.status(400).json({
           ok: false,
           message: 'PDF file required.'
         });
       }
 
+      let totalImported = 0;
+      let totalPages = 0;
       const results = [];
 
-      // Process PDFs one by one
+      // Process every PDF
       for (const file of req.files) {
 
         console.log(
-          `Starting PDF: ${file.originalname}`
+          `Starting PDF import: ${file.originalname}`
         );
 
-        const parsed = await parsePdfBuffer(
-          file.buffer,
-          p => {
+        const parsed =
+          await parsePdfBuffer(
+            file.buffer,
+            progress => {
 
-            if (
-              p.page === 1 ||
-              p.page === p.totalPages ||
-              p.page % 25 === 0
-            ) {
-              console.log(
-                `PDF import: ${file.originalname} - ` +
-                `page ${p.page}/${p.totalPages}, ` +
-                `records ${p.records}`
-              );
+              if (
+                progress.page === 1 ||
+                progress.page ===
+                  progress.totalPages ||
+                progress.page % 25 === 0
+              ) {
+                console.log(
+                  `PDF import: ${file.originalname} | ` +
+                  `page ${progress.page}/` +
+                  `${progress.totalPages} | ` +
+                  `records ${progress.records}`
+                );
+              }
+
             }
+          );
 
-          }
-        );
+        const imported =
+          upsertRecords(
+            parsed.records,
+            file.originalname
+          );
 
-        const imported = await upsertRecords(
-          parsed.records,
-          file.originalname
-        );
+        totalImported += imported;
+        totalPages += parsed.pages;
 
         results.push({
           file: file.originalname,
@@ -150,17 +186,20 @@ app.post(
         });
 
         console.log(
-          `Completed: ${file.originalname} - ` +
-          `${imported} records`
+          `Completed: ${file.originalname} | ` +
+          `pages ${parsed.pages} | ` +
+          `records ${imported}`
         );
       }
 
-      // Send final response
-      res.json({
+      return res.json({
         ok: true,
-        message: 'All PDFs imported successfully.',
+        message:
+          'PDF imported successfully.',
         files: results,
-        databaseRecords: await count()
+        pages: totalPages,
+        records: totalImported,
+        databaseRecords: count()
       });
 
     } catch (e) {
@@ -170,7 +209,7 @@ app.post(
         e
       );
 
-      res.status(500).json({
+      return res.status(500).json({
         ok: false,
         message:
           e.message ||
@@ -180,32 +219,80 @@ app.post(
   }
 );
 
-
 // ===============================
 // Health Check
 // ===============================
 
-app.get('/api/health', async (req, res) => {
-  res.json({
-    ok: true,
-    records: await count()
-  });
+app.get('/api/health', (req, res) => {
+
+  try {
+
+    return res.json({
+      ok: true,
+      records: count()
+    });
+
+  } catch (err) {
+
+    console.error(
+      'Health check error:',
+      err
+    );
+
+    return res.status(500).json({
+      ok: false,
+      message: 'Database error.'
+    });
+  }
 });
 
+// ===============================
+// Root
+// ===============================
+
+app.get('/', (req, res) => {
+  res.sendFile(
+    path.join(
+      __dirname,
+      'public',
+      'index.html'
+    )
+  );
+});
+
+// ===============================
+// Error Handler
+// ===============================
+
+app.use(
+  (err, req, res, next) => {
+
+    console.error(
+      'Server error:',
+      err
+    );
+
+    return res.status(500).json({
+      ok: false,
+      message:
+        err.message ||
+        'Internal server error.'
+    });
+  }
+);
 
 // ===============================
 // Start Server
 // ===============================
 
-initDone
-  .then(() => {
-    app.listen(PORT, '0.0.0.0', () => {
-      console.log(
-        `Result portal running on port ${PORT}`
-      );
-    });
-  })
-  .catch(err => {
-    console.error('Failed to start server — database not ready:', err);
-    process.exit(1);
-  });
+app.listen(
+  PORT,
+  '0.0.0.0',
+  () => {
+
+    console.log(
+      `Result portal running on port ${PORT}`
+    );
+
+  }
+);
