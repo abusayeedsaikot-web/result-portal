@@ -1,470 +1,334 @@
-<!d<!doctype html>
-<html>
+<!doctype html>
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Result Portal</title>
+<title>Result Portal - Polytechnic & Diploma Results</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 
 <style>
-body{
-  font-family:Arial,sans-serif;
-  background:#f4f6f9;
-  margin:0
+body {
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  background-color: #f6f8fc;
+  color: #1e293b;
 }
-
-.wrap{
-  max-width:760px;
-  margin:50px auto;
-  padding:20px
+.select-wrapper {
+  position: relative;
 }
-
-.card{
-  background:#fff;
-  padding:25px;
-  border-radius:16px;
-  margin:15px 0;
-  box-shadow:0 4px 18px #0001
-}
-
-input,button{
-  padding:12px;
-  border-radius:9px;
-  border:1px solid #ccd3dc;
-  font-size:16px
-}
-
-input{
-  width:100%;
-  box-sizing:border-box
-}
-
-button{
-  cursor:pointer;
-  background:#172033;
-  color:#fff;
-  font-weight:bold
-}
-
-button:disabled{
-  opacity:.6;
-  cursor:not-allowed
-}
-
-.row{
-  display:flex;
-  gap:10px
-}
-
-.row input{
-  flex:1
-}
-
-.hidden{
-  display:none
-}
-
-.status{
-  font-weight:bold
-}
-
-.gpa{
-  display:flex;
-  gap:10px
-}
-
-.gpa div{
-  flex:1;
-  background:#f1f4f8;
-  padding:15px;
-  text-align:center;
-  border-radius:10px
-}
-
-.tags span{
-  display:inline-block;
-  background:#edf1f5;
-  padding:7px 10px;
-  border-radius:20px;
-  margin:3px
-}
-
-.file-info{
-  margin-top:10px;
-  padding:10px;
-  background:#f1f4f8;
-  border-radius:9px
-}
-
-.progress-box{
-  margin-top:15px;
-  white-space:pre-line
-}
-
-@media(max-width:600px){
-  .row,.gpa{
-    flex-direction:column
-  }
+.select-wrapper::after {
+  content: '';
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 10px;
+  height: 6px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 10 6'%3E%3Cpath stroke='%3A6b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m1 1 4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-size: contain;
+  pointer-events: none;
 }
 </style>
 </head>
 
-<body>
+<body class="min-h-screen flex flex-col justify-between py-10 px-4 sm:px-6">
 
-<div class="wrap">
+  <div class="max-w-5xl mx-auto w-full flex-1 flex flex-col items-center">
+    <!-- Top Header Message -->
+    <header class="text-center my-6 md:my-10">
+      <h1 class="text-gray-600 text-lg sm:text-xl font-normal tracking-tight max-w-2xl mx-auto leading-relaxed">
+        Check your diploma and polytechnic results instantly by roll number
+      </h1>
+    </header>
 
-  <!-- Result Search -->
-  <div class="card">
-    <h1>Result Portal</h1>
-    <p>Search result by Roll</p>
+    <!-- Main Container Layout -->
+    <main class="w-full flex justify-center md:justify-end max-w-4xl px-2">
+      <div class="w-full max-w-md bg-white rounded-2xl shadow-sm border border-gray-100/80 p-6 sm:p-8">
+        
+        <!-- Roll Search Form -->
+        <form id="search" class="space-y-5">
+          <!-- Curriculum / Exam Selection -->
+          <div>
+            <label for="exam" class="block text-sm font-semibold text-gray-900 mb-2">
+              Curriculum / Exam
+            </label>
+            <div class="select-wrapper">
+              <select
+                id="exam"
+                class="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-800 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none shadow-2xs transition-all cursor-pointer"
+              >
+                <option value="diploma-eng">Diploma in Engineering</option>
+                <option value="diploma-textile">Diploma in Textile Engineering</option>
+                <option value="diploma-agri">Diploma in Agriculture</option>
+                <option value="diploma-tourism">Diploma in Tourism & Hospitality</option>
+              </select>
+            </div>
+          </div>
 
-    <form id="search">
-      <div class="row">
-        <input
-          id="roll"
-          maxlength="6"
-          placeholder="6-digit Roll"
-          required
-        >
-        <button type="submit">Search</button>
+          <!-- Roll Number Input -->
+          <div>
+            <label for="roll" class="block text-sm font-semibold text-gray-900 mb-2">
+              Roll Number <span class="text-blue-600">*</span>
+            </label>
+            <input
+              id="roll"
+              type="text"
+              inputmode="numeric"
+              maxlength="8"
+              placeholder="Enter roll number (e.g. 921514)"
+              required
+              class="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-800 text-base placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-2xs transition-all"
+            >
+          </div>
+
+          <!-- View Result Submit Button -->
+          <button
+            id="search-btn"
+            type="submit"
+            class="w-full mt-2 py-3.5 px-4 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition-all text-base flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <span>View Result</span>
+          </button>
+        </form>
+
+        <!-- Status / Error Messages -->
+        <div id="msg" class="mt-4 text-center text-sm font-medium"></div>
+
+        <!-- Result Display Card -->
+        <div id="result" class="hidden mt-6 pt-6 border-t border-gray-100 space-y-4"></div>
+
       </div>
-    </form>
-  </div>
+    </main>
 
+    <!-- Admin PDF Import Drawer -->
+    <div class="w-full max-w-md mt-8">
+      <div class="bg-white/80 backdrop-blur-xs rounded-xl border border-gray-200/60 p-4 shadow-2xs">
+        <details class="group">
+          <summary class="flex items-center justify-between font-semibold text-sm text-gray-700 cursor-pointer list-none select-none">
+            <span class="flex items-center gap-2">
+              <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+              Admin: Import Result PDFs
+            </span>
+            <svg class="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+          </summary>
 
-  <div id="msg"></div>
+          <div class="mt-4 pt-4 border-t border-gray-100 space-y-3">
+            <div>
+              <label class="block text-xs font-medium text-gray-600 mb-1">Admin Passkey</label>
+              <input
+                id="key"
+                type="password"
+                placeholder="Enter admin key"
+                class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+            </div>
 
-  <div id="result" class="card hidden"></div>
+            <div>
+              <label class="block text-xs font-medium text-gray-600 mb-1">Select Result PDFs (Max 10)</label>
+              <input
+                id="pdf"
+                type="file"
+                accept=".pdf,application/pdf"
+                multiple
+                class="w-full text-xs text-gray-500 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
+              >
+            </div>
 
+            <div id="fileInfo" class="text-xs text-gray-500 bg-gray-50 p-2.5 rounded-lg whitespace-pre-line font-mono">
+              No PDF selected.
+            </div>
 
-  <!-- Admin PDF Import -->
-  <div class="card">
+            <button
+              id="import"
+              class="w-full py-2.5 px-3 bg-gray-900 hover:bg-gray-800 text-white font-medium text-sm rounded-lg shadow-2xs transition-colors cursor-pointer"
+            >
+              Upload & Import PDFs
+            </button>
 
-    <details>
-
-      <summary>
-        <b>Admin: Import Result PDFs</b>
-      </summary>
-
-      <p>
-        <input
-          id="key"
-          type="password"
-          placeholder="Admin Key"
-        >
-      </p>
-
-      <p>
-        <input
-          id="pdf"
-          type="file"
-          accept=".pdf,application/pdf"
-          multiple
-        >
-      </p>
-
-      <div id="fileInfo" class="file-info">
-        No PDF selected.
+            <div id="progress" class="text-xs text-gray-600 bg-gray-50 p-2.5 rounded-lg whitespace-pre-line font-mono empty:hidden"></div>
+          </div>
+        </details>
       </div>
-
-      <br>
-
-      <button id="import">
-        Upload & Import PDFs
-      </button>
-
-      <div
-        id="progress"
-        class="progress-box"
-      ></div>
-
-    </details>
-
+    </div>
   </div>
-
-</div>
-
 
 <script>
-
 const $ = id => document.getElementById(id);
-
 let importing = false;
 
-
 // ======================================
-// Roll Search
+// Roll Search Handler
 // ======================================
-
 $('search').onsubmit = async e => {
-
   e.preventDefault();
 
   if(importing){
-
-    $('msg').textContent =
-      'PDF import is still running. Please wait until Import complete.';
-
+    $('msg').className = 'mt-4 text-center text-sm font-medium text-amber-600';
+    $('msg').textContent = 'PDF import is in progress. Please wait...';
     return;
   }
 
-  $('msg').textContent = 'Searching...';
+  const rollVal = $('roll').value.trim();
+  if(!rollVal) return;
 
+  $('msg').className = 'mt-4 text-center text-sm font-medium text-blue-600 animate-pulse';
+  $('msg').textContent = 'Searching result...';
   $('result').classList.add('hidden');
 
-  try{
-
-    const r = await fetch('/api/result',{
-
-      method:'POST',
-
-      headers:{
-        'Content-Type':'application/json'
-      },
-
-      body:JSON.stringify({
-        roll:$('roll').value.trim()
-      })
-
+  try {
+    const r = await fetch('/api/result', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ roll: rollVal })
     });
 
     const d = await r.json();
 
     if(!r.ok){
-
-      $('msg').textContent =
-        d.message || 'No result found.';
-
+      $('msg').className = 'mt-4 text-center text-sm font-medium text-red-600';
+      $('msg').textContent = d.message || 'No result found for this roll number.';
       return;
     }
 
     const x = d.result;
-
     $('msg').textContent = '';
 
+    const isPassed = (x.status || '').toLowerCase().includes('pass');
+    const statusBg = isPassed ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200';
+
     $('result').innerHTML = `
-
-      <h2>Roll ${x.roll}</h2>
-
-      <p>
-        Status:
-        <b>${x.status || ''}</b>
-      </p>
-
-      <div class="gpa">
-
+      <div class="flex items-center justify-between pb-3 border-b border-gray-100">
         <div>
-          GPA1<br>
-          <b>${x.gpa1 || ''}</b>
+          <span class="text-xs uppercase font-bold tracking-wider text-gray-400">Roll Number</span>
+          <h2 class="text-xl font-bold text-gray-900">${x.roll}</h2>
         </div>
-
-        <div>
-          GPA2<br>
-          <b>${x.gpa2 || ''}</b>
-        </div>
-
-        <div>
-          GPA3<br>
-          <b>${x.gpa3 || ''}</b>
-        </div>
-
+        <span class="px-3 py-1 rounded-full text-xs font-semibold border ${statusBg}">
+          ${x.status || 'Result Available'}
+        </span>
       </div>
 
-      <p>
-        Exam Year:
-        ${x.exam_year || '—'}
-      </p>
+      <div class="grid grid-cols-3 gap-2 text-center py-2">
+        <div class="bg-gray-50 p-3 rounded-xl border border-gray-100">
+          <div class="text-xs text-gray-500 font-medium mb-1">GPA 1</div>
+          <div class="text-base font-bold text-gray-900">${x.gpa1 || '—'}</div>
+        </div>
+        <div class="bg-gray-50 p-3 rounded-xl border border-gray-100">
+          <div class="text-xs text-gray-500 font-medium mb-1">GPA 2</div>
+          <div class="text-base font-bold text-gray-900">${x.gpa2 || '—'}</div>
+        </div>
+        <div class="bg-gray-50 p-3 rounded-xl border border-gray-100">
+          <div class="text-xs text-gray-500 font-medium mb-1">GPA 3</div>
+          <div class="text-base font-bold text-gray-900">${x.gpa3 || '—'}</div>
+        </div>
+      </div>
 
-      <p>
-        Referred Subjects:
-        ${(x.ref_subjects || []).join(', ')}
-      </p>
-
+      <div class="space-y-2 text-xs text-gray-600 pt-1">
+        ${x.exam_year ? `<div class="flex justify-between"><span class="font-medium text-gray-500">Exam Year:</span><span class="font-semibold text-gray-800">${x.exam_year}</span></div>` : ''}
+        ${x.institute ? `<div class="flex justify-between"><span class="font-medium text-gray-500">Institute:</span><span class="font-semibold text-gray-800">${x.institute}</span></div>` : ''}
+        ${x.ref_subjects && x.ref_subjects.length ? `
+          <div class="mt-2 pt-2 border-t border-gray-100">
+            <span class="font-medium text-gray-500 block mb-1">Referred Subjects:</span>
+            <div class="flex flex-wrap gap-1">
+              ${x.ref_subjects.map(s => `<span class="bg-red-50 text-red-600 px-2 py-0.5 rounded text-[11px] font-medium border border-red-100">${s}</span>`).join('')}
+            </div>
+          </div>
+        ` : ''}
+      </div>
     `;
 
     $('result').classList.remove('hidden');
 
-  }catch(e){
-
-    $('msg').textContent =
-      'Search failed. Please try again.';
-
+  } catch(err) {
+    $('msg').className = 'mt-4 text-center text-sm font-medium text-red-600';
+    $('msg').textContent = 'Search failed. Please check network connection.';
   }
-
 };
 
-
 // ======================================
-// PDF Selection
+// PDF File Selection Listener
 // ======================================
-
 $('pdf').addEventListener('change', () => {
-
   const files = $('pdf').files;
-
   if(files.length === 0){
-
-    $('fileInfo').textContent =
-      'No PDF selected.';
-
+    $('fileInfo').textContent = 'No PDF selected.';
     return;
   }
-
   if(files.length > 10){
-
-    $('fileInfo').textContent =
-      'Maximum 10 PDFs can be selected.';
-
+    $('fileInfo').textContent = 'Maximum 10 PDFs can be selected.';
     $('pdf').value = '';
-
     return;
   }
-
-  let text =
-    `${files.length} PDF selected:\n\n`;
-
+  let text = `${files.length} PDF(s) selected:\n\n`;
   for(let i = 0; i < files.length; i++){
-
-    text +=
-      `${i + 1}. ${files[i].name}\n`;
-
+    text += `${i + 1}. ${files[i].name}\n`;
   }
-
   $('fileInfo').textContent = text;
-
 });
 
-
 // ======================================
-// Multiple PDF Import
+// PDF Upload & Import Handler
 // ======================================
-
 $('import').onclick = async () => {
-
   if(importing) return;
-
   const files = $('pdf').files;
 
-  // Check PDF
   if(!files || files.length === 0){
-
-    $('progress').textContent =
-      'Select at least one PDF first.';
-
+    $('progress').textContent = 'Select at least one PDF first.';
     return;
   }
-
-  // Maximum 10
   if(files.length > 10){
-
-    $('progress').textContent =
-      'Maximum 10 PDFs can be uploaded at once.';
-
+    $('progress').textContent = 'Maximum 10 PDFs allowed.';
     return;
   }
 
-  // Check admin key
-  const adminKey =
-    $('key').value.trim();
-
+  const adminKey = $('key').value.trim();
   if(!adminKey){
-
-    $('progress').textContent =
-      'Enter Admin Key first.';
-
+    $('progress').textContent = 'Enter Admin Key first.';
     return;
   }
-
 
   importing = true;
-
   $('import').disabled = true;
+  $('progress').textContent = `Uploading ${files.length} PDF(s)...\nPlease wait.`;
 
-  $('progress').textContent =
-    `Uploading ${files.length} PDF(s)...\n\nPlease wait.`;
-
-
-  try{
-
+  try {
     const fd = new FormData();
-
-
-    // Add every PDF using the same field name: pdf
     for(const file of files){
-
       fd.append('pdf', file);
-
     }
 
-
-    const r = await fetch(
-      '/api/admin/import-pdf',
-      {
-        method:'POST',
-
-        headers:{
-          'x-admin-key':adminKey
-        },
-
-        body:fd
-      }
-    );
-
+    const r = await fetch('/api/admin/import-pdf', {
+      method: 'POST',
+      headers: { 'x-admin-key': adminKey },
+      body: fd
+    });
 
     const d = await r.json();
 
-
     if(!r.ok || !d.ok){
-
-      $('progress').textContent =
-        d.message || 'Import failed.';
-
+      $('progress').textContent = d.message || 'Import failed.';
       return;
     }
 
-
-    // Show individual PDF results
-
-    let output =
-      '✅ All PDFs imported successfully.\n\n';
-
+    let output = '✅ All PDFs imported successfully.\n\n';
     if(d.files){
-
       for(const item of d.files){
-
-        output +=
-          `📄 ${item.file}\n` +
-          `Pages: ${item.pages}\n` +
-          `Records: ${item.records}\n\n`;
-
+        output += `📄 ${item.file}\nPages: ${item.pages} | Records: ${item.records}\n\n`;
       }
-
     }
-
-
-    output +=
-      `Database total records: ${d.databaseRecords}`;
-
+    output += `Total database records: ${d.databaseRecords}`;
     $('progress').textContent = output;
 
-
-  }catch(e){
-
-    console.error(e);
-
-    $('progress').textContent =
-      'Import failed: ' +
-      (e.message || 'Unknown error.');
-
-  }finally{
-
+  } catch(e) {
+    $('progress').textContent = 'Import failed: ' + (e.message || 'Unknown error.');
+  } finally {
     importing = false;
-
     $('import').disabled = false;
-
   }
-
 };
-
 </script>
 
 </body>
