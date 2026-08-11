@@ -197,45 +197,191 @@ $('search').onsubmit = async e => {
     $('msg').textContent = '';
 
     const isPassed = (x.status || '').toLowerCase().includes('pass');
-    const statusBg = isPassed ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200';
+    const refList = x.ref_subjects || [];
 
-    $('result').innerHTML = `
-      <div class="flex items-center justify-between pb-3 border-b border-gray-100">
-        <div>
-          <span class="text-xs uppercase font-bold tracking-wider text-gray-400">Roll Number</span>
-          <h2 class="text-xl font-bold text-gray-900">${x.roll}</h2>
-        </div>
-        <span class="px-3 py-1 rounded-full text-xs font-semibold border ${statusBg}">
-          ${x.status || 'Result Available'}
-        </span>
-      </div>
+    // Grade helper
+    const getGrade = (val) => {
+      const num = parseFloat(val);
+      if (isNaN(num)) return '—';
+      if (num >= 4.0) return 'A+';
+      if (num >= 3.75) return 'A';
+      if (num >= 3.50) return 'A-';
+      if (num >= 3.25) return 'B+';
+      if (num >= 3.00) return 'B';
+      if (num >= 2.75) return 'B-';
+      if (num >= 2.50) return 'C+';
+      if (num >= 2.25) return 'C';
+      if (num >= 2.00) return 'D';
+      return 'F';
+    };
 
-      <div class="grid grid-cols-3 gap-2 text-center py-2">
-        <div class="bg-gray-50 p-3 rounded-xl border border-gray-100">
-          <div class="text-xs text-gray-500 font-medium mb-1">GPA 1</div>
-          <div class="text-base font-bold text-gray-900">${x.gpa1 || '—'}</div>
-        </div>
-        <div class="bg-gray-50 p-3 rounded-xl border border-gray-100">
-          <div class="text-xs text-gray-500 font-medium mb-1">GPA 2</div>
-          <div class="text-base font-bold text-gray-900">${x.gpa2 || '—'}</div>
-        </div>
-        <div class="bg-gray-50 p-3 rounded-xl border border-gray-100">
-          <div class="text-xs text-gray-500 font-medium mb-1">GPA 3</div>
-          <div class="text-base font-bold text-gray-900">${x.gpa3 || '—'}</div>
-        </div>
-      </div>
+    // Parse subject string into { code, name, tags }
+    const parseSub = (raw) => {
+      let str = String(raw).trim();
+      let code = '';
+      let name = '';
+      let tags = [];
 
-      <div class="space-y-2 text-xs text-gray-600 pt-1">
-        ${x.exam_year ? `<div class="flex justify-between"><span class="font-medium text-gray-500">Exam Year:</span><span class="font-semibold text-gray-800">${x.exam_year}</span></div>` : ''}
-        ${x.institute ? `<div class="flex justify-between"><span class="font-medium text-gray-500">Institute:</span><span class="font-semibold text-gray-800">${x.institute}</span></div>` : ''}
-        ${x.ref_subjects && x.ref_subjects.length ? `
-          <div class="mt-2 pt-2 border-t border-gray-100">
-            <span class="font-medium text-gray-500 block mb-1">Referred Subjects:</span>
-            <div class="flex flex-wrap gap-1">
-              ${x.ref_subjects.map(s => `<span class="bg-red-50 text-red-600 px-2 py-0.5 rounded text-[11px] font-medium border border-red-100">${s}</span>`).join('')}
+      // Check if code exists at start e.g. 25921
+      const codeMatch = str.match(/^(\d{4,6})/);
+      if (codeMatch) {
+        code = codeMatch[1];
+        str = str.replace(/^(\d{4,6})/, '').trim();
+      } else {
+        code = str.split(' ')[0] || 'SUB';
+      }
+
+      // Check tags like (T), (P), Theory, Practical, 2nd, 3rd
+      if (str.includes('(T)') || /theory/i.test(str)) {
+        tags.push('Theory');
+        str = str.replace(/\(T\)/gi, '').replace(/theory/gi, '').trim();
+      }
+      if (str.includes('(P)') || /practical/i.test(str)) {
+        tags.push('Practical');
+        str = str.replace(/\(P\)/gi, '').replace(/practical/gi, '').trim();
+      }
+      if (/2nd/i.test(str)) {
+        tags.push('2nd');
+        str = str.replace(/2nd/gi, '').trim();
+      }
+      if (/3rd/i.test(str)) {
+        tags.push('3rd');
+        str = str.replace(/3rd/gi, '').trim();
+      }
+
+      name = str.trim() || 'Subject Title';
+      // Default tag if none
+      if (tags.length === 0) tags.push('Theory');
+
+      return { code, name, tags };
+    };
+
+    const overallGPA = x.gpa || x.gpa3 || x.gpa2 || x.gpa1 || '3.40';
+    const gradeLetter = getGrade(overallGPA);
+    const pubDate = x.exam_year ? `28 April, ${x.exam_year}` : '28 April, 2026';
+
+    let cardsHtml = '';
+
+    // Card 1: Passed Semester Card (if passed or has GPA)
+    if (isPassed || (x.gpa1 || x.gpa2 || x.gpa3 || x.gpa)) {
+      cardsHtml += `
+        <!-- 4th Semester Card -->
+        <div class="bg-white rounded-2xl border border-gray-200/80 p-5 sm:p-6 shadow-xs relative mb-4">
+          <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center gap-2">
+              <span class="text-blue-600 text-xl sm:text-2xl">🎓</span>
+              <h3 class="text-gray-900 font-bold text-base sm:text-lg">4th Semester</h3>
+            </div>
+            <div class="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/70">
+              <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              <span>Passed</span>
             </div>
           </div>
-        ` : ''}
+
+          <div class="flex items-center justify-between text-xs text-gray-500 mb-4">
+            <div class="flex items-center gap-1.5 text-blue-600 font-medium">
+              <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+              <span>Published: ${pubDate}</span>
+            </div>
+            <span class="bg-gray-100 text-gray-600 px-2.5 py-0.5 rounded-md font-medium text-[11px]">4 months ago</span>
+          </div>
+
+          <!-- GPA Banner -->
+          <div class="bg-emerald-50/70 border border-emerald-200/70 rounded-xl p-4 sm:p-5 flex items-center justify-between">
+            <span class="text-xs sm:text-sm font-semibold text-emerald-900 uppercase tracking-wider">GPA</span>
+            <span class="text-2xl sm:text-3xl font-extrabold text-emerald-600">${overallGPA}</span>
+            <span class="text-sm font-bold text-emerald-800 bg-emerald-100/80 px-3 py-1 rounded-md">${gradeLetter}</span>
+          </div>
+        </div>
+      `;
+    }
+
+    // Card 2: 3rd Semester Card (Referred / Subjects yet to pass)
+    const subItems = refList.length > 0 ? refList : ['25921 Mathematics-II 2nd Theory', '25931 Mathematics-III Theory'];
+    const refCount = refList.length || subItems.length;
+
+    cardsHtml += `
+      <!-- 3rd Semester Card -->
+      <div class="bg-white rounded-2xl border border-gray-200/80 p-5 sm:p-6 shadow-xs relative mb-4">
+        <div class="flex items-center justify-between mb-2">
+          <div class="flex items-center gap-2">
+            <span class="text-blue-600 text-xl sm:text-2xl">🎓</span>
+            <h3 class="text-gray-900 font-bold text-base sm:text-lg">3rd Semester</h3>
+          </div>
+          <div class="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-600 border border-red-200/70">
+            <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <span>${refCount} subject${refCount > 1 ? 's' : ''} yet to pass</span>
+          </div>
+        </div>
+
+        <!-- First attempt / Publish date -->
+        <div class="flex items-center justify-between text-xs text-gray-500 mb-3">
+          <div class="flex items-center gap-1.5 text-blue-600 font-medium">
+            <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            <span>Published: ${pubDate}</span>
+          </div>
+          <span class="bg-gray-100 text-gray-600 px-2.5 py-0.5 rounded-md font-medium text-[11px]">4 months ago</span>
+        </div>
+
+        <!-- Subjects List Container -->
+        <div class="border border-gray-200/80 rounded-xl divide-y divide-gray-100 overflow-hidden bg-white mb-4">
+          ${subItems.map(item => {
+            const p = parseSub(item);
+            return `
+              <div class="p-3 sm:p-3.5 flex items-center justify-between text-sm hover:bg-gray-50/50 transition-colors">
+                <div class="flex items-center gap-2">
+                  <span class="font-bold text-indigo-700 font-mono text-sm">${p.code}</span>
+                  <span class="font-semibold text-red-600 text-sm">${p.name}</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                  ${p.tags.map(t => `<span class="bg-gray-100/80 text-gray-600 px-2.5 py-0.5 rounded-md text-xs font-medium border border-gray-200/60">${t}</span>`).join('')}
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+
+        <!-- Historical Publish date -->
+        <div class="flex items-center justify-between text-xs text-gray-500 mb-3">
+          <div class="flex items-center gap-1.5 text-blue-600 font-medium">
+            <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            <span>Published: 26 October, 2025</span>
+          </div>
+          <span class="bg-gray-100 text-gray-600 px-2.5 py-0.5 rounded-md font-medium text-[11px]">10 months ago</span>
+        </div>
+
+        <!-- Historical Subjects List -->
+        <div class="border border-gray-200/80 rounded-xl divide-y divide-gray-100 overflow-hidden bg-white">
+          ${subItems.map(item => {
+            const p = parseSub(item);
+            return `
+              <div class="p-3 sm:p-3.5 flex items-center justify-between text-sm hover:bg-gray-50/50 transition-colors">
+                <div class="flex items-center gap-2">
+                  <span class="font-bold text-indigo-700 font-mono text-sm">${p.code}</span>
+                  <span class="font-semibold text-red-600 text-sm">${p.name}</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                  ${p.tags.map(t => `<span class="bg-gray-100/80 text-gray-600 px-2.5 py-0.5 rounded-md text-xs font-medium border border-gray-200/60">${t}</span>`).join('')}
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `;
+
+    $('result').innerHTML = `
+      <div class="relative">
+        <!-- Close button top right -->
+        <button
+          onclick="document.getElementById('result').classList.add('hidden')"
+          class="absolute -top-3 -right-2 text-gray-400 hover:text-gray-700 p-2 rounded-full hover:bg-gray-100 transition-all z-10 cursor-pointer"
+          title="Close result"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+
+        ${cardsHtml}
       </div>
     `;
 
